@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在线考试系统</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Microsoft YaHei', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
+.container { max-width: 800px; margin: 0 auto; padding: 20px; }
+.card { background: #fff; border-radius: 12px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+h1 { text-align: center; color: #1890ff; margin-bottom: 10px; }
+h2 { color: #333; font-size: 16px; margin-bottom: 15px; }
+input[type=text] { width: 100%; padding: 12px; border: 2px solid #d9d9d9; border-radius: 8px; font-size: 16px; outline: none; transition: border-color 0.3s; }
+input[type=text]:focus { border-color: #1890ff; }
+.btn { display: inline-block; padding: 12px 32px; background: #1890ff; color: #fff; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: background 0.3s; }
+.btn:hover { background: #40a9ff; }
+.btn:disabled { background: #d9d9d9; cursor: not-allowed; }
+.q-card { border-left: 4px solid #1890ff; padding: 15px 20px; margin-bottom: 15px; background: #fafafa; border-radius: 0 8px 8px 0; }
+.q-type { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #fff; margin-bottom: 8px; }
+.type-single { background: #1890ff; }
+.type-multi { background: #722ed1; }
+.type-judge { background: #52c41a; }
+.q-text { font-size: 15px; color: #333; line-height: 1.8; margin-bottom: 12px; }
+.q-options { margin-top: 5px; }
+.q-opt { display: flex; align-items: center; padding: 10px 15px; margin-bottom: 8px; background: #fff; border: 2px solid #e8e8e8; border-radius: 8px; cursor: pointer; transition: all 0.2s; user-select: none; }
+.q-opt:hover { border-color: #1890ff; background: #e6f7ff; }
+.q-opt.selected { border-color: #1890ff; background: #e6f7ff; }
+.q-opt .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #d9d9d9; margin-right: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 12px; color: #fff; }
+.q-opt.selected .dot { background: #1890ff; border-color: #1890ff; }
+.q-opt.selected .dot:after { content: ''; }
+.q-opt .check { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #d9d9d9; margin-right: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.q-opt.selected .check { background: #1890ff; border-color: #1890ff; }
+.q-opt .label { color: #333; font-size: 14px; line-height: 1.6; }
+.timer { position: fixed; top: 20px; right: 20px; background: #fff; padding: 10px 20px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 18px; color: #333; z-index: 100; }
+.progress-bar { height: 6px; background: #e8e8e8; border-radius: 3px; margin-bottom: 20px; overflow: hidden; }
+.progress-fill { height: 100%; background: #1890ff; transition: width 0.3s; }
+.result-box { text-align: center; padding: 40px 20px; }
+.score { font-size: 64px; color: #1890ff; font-weight: bold; }
+.score-detail { margin: 20px 0; font-size: 16px; color: #666; }
+.detail-section { text-align: left; margin-top: 25px; }
+.detail-item { padding: 14px 16px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid #52c41a; background: #f6ffed; }
+.detail-item.wrong { border-left-color: #ff4d4f; background: #fff2f0; }
+.detail-q { font-size: 14px; color: #333; margin-bottom: 6px; line-height: 1.6; }
+.detail-a { font-size: 13px; color: #666; line-height: 1.8; }
+.correct-text { color: #52c41a; font-weight: bold; }
+.wrong-text { color: #ff4d4f; font-weight: bold; }
+.legend { display: flex; gap: 20px; justify-content: center; margin-top: 15px; font-size: 13px; color: #999; }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.legend .dot-green { width: 10px; height: 10px; border-radius: 50%; background: #52c41a; }
+.legend .dot-red { width: 10px; height: 10px; border-radius: 50%; background: #ff4d4f; }
+</style>
+</head>
+<body>
+
+<div id="startPage" class="container">
+  <div class="card" style="text-align:center; padding:50px 30px;">
+    <h1>📝 在线考试系统</h1>
+    <p style="color:#999;margin:15px 0 30px;">请填写姓名后开始考试</p>
+    <input type="text" id="nameInput" placeholder="请输入您的姓名" style="max-width:400px;margin-bottom:30px;">
+    <br>
+    <button class="btn" onclick="startExam()" style="font-size:18px;padding:14px 50px;">开始考试</button>
+  </div>
+</div>
+
+<div id="examPage" class="hidden">
+  <div class="timer" id="timer">00:00</div>
+  <div class="container">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <h2 id="qProgress">第 1 题 / 共 20 题</h2>
+        <span id="qScore" style="color:#999;"></span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div id="questionArea"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:25px;">
+        <button class="btn" id="prevBtn" onclick="prevQ()" style="background:#8c8c8c;">上一题</button>
+        <button class="btn" id="nextBtn" onclick="nextQ()">下一题</button>
+        <button class="btn hidden" id="submitBtn" onclick="submitExam()" style="background:#52c41a;">提交试卷</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="resultPage" class="hidden">
+  <div class="container">
+    <div class="card result-box">
+      <h1>考试结束</h1>
+      <div class="score" id="finalScore">0</div>
+      <div class="score-detail" id="scoreDetail"></div>
+      <div class="legend">
+        <span><span class="dot-green"></span> 回答正确</span>
+        <span><span class="dot-red"></span> 回答错误</span>
+      </div>
+      <div class="detail-section" id="detailSection"></div>
+      <button class="btn" onclick="location.reload()" style="margin-top:20px;">重新考试</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let questions = [];
+let currentQ = 0;
+let answers = {};
+let startTime = 0;
+let timerInterval = null;
+let currentScoreId = null;
+
+function startExam() {
+    const name = document.getElementById('nameInput').value.trim();
+    if (!name) { alert('请输入姓名'); return; }
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 1000);
+    loadQuestions();
+}
+
+function updateTimer() {
+    const sec = Math.floor((Date.now() - startTime) / 1000);
+    const m = String(Math.floor(sec/60)).padStart(2,'0');
+    const s = String(sec%60).padStart(2,'0');
+    document.getElementById('timer').textContent = m + ':' + s;
+}
+
+async function loadQuestions() {
+    const res = await fetch('/api/questions');
+    const data = await res.json();
+    questions = data.questions;
+    document.getElementById('startPage').classList.add('hidden');
+    document.getElementById('examPage').classList.remove('hidden');
+    showQuestion();
+}
+
+function showQuestion() {
+    const q = questions[currentQ];
+    document.getElementById('qProgress').textContent = '第 ' + (currentQ+1) + ' 题 / 共 ' + questions.length + ' 题';
+    document.getElementById('qScore').textContent = '(' + q.score + '分)';
+    document.getElementById('progressFill').style.width = ((currentQ+1)/questions.length*100) + '%';
+    document.getElementById('prevBtn').style.visibility = currentQ === 0 ? 'hidden' : 'visible';
+    document.getElementById('nextBtn').classList.toggle('hidden', currentQ === questions.length-1);
+    document.getElementById('submitBtn').classList.toggle('hidden', currentQ !== questions.length-1);
+
+    let html = '';
+    const typeClass = q.type === 'single' ? 'type-single' : q.type === 'multi' ? 'type-multi' : 'type-judge';
+    const typeText = q.type === 'single' ? '单选题' : q.type === 'multi' ? '多选题' : '判断题';
+    html += '<div class="q-card"><span class="q-type ' + typeClass + '">' + typeText + '</span>';
+    html += '<div class="q-text">' + (currentQ+1) + '、 ' + escapeHtml(q.question) + '</div>';
+
+    if (q.type === 'judge') {
+        const yesClass = (answers[q.id] && answers[q.id][0] === '对') ? 'selected' : '';
+        const noClass = (answers[q.id] && answers[q.id][0] === '错') ? 'selected' : '';
+        html += '<div class="q-options">';
+        html += '<div class="q-opt ' + yesClass + '" onclick="answerJudge(' + q.id + ',\'对\')"><span class="check">✔</span> 对</div>';
+        html += '<div class="q-opt ' + noClass + '" onclick="answerJudge(' + q.id + ',\'错\')"><span class="check">✘</span> 错</div>';
+        html += '</div>';
+    } else {
+        html += '<div class="q-options">';
+        q.options.forEach(opt => {
+            const letter = opt.charAt(0);
+            const checked = answers[q.id] && answers[q.id].includes(letter);
+            const isMulti = q.type === 'multi';
+            const indicator = isMulti
+                ? '<span class="check"></span>'
+                : '<span class="dot"></span>';
+            html += '<div class="q-opt ' + (checked ? 'selected' : '') + '" onclick="toggleOption(' + q.id + ',\'' + letter + '\',' + isMulti + ')">' + indicator + '<span class="label">' + escapeHtml(opt) + '</span></div>';
+        });
+        html += '</div>';
+    }
+    html += '</div>';
+    document.getElementById('questionArea').innerHTML = html;
+}
+
+function toggleOption(qid, letter, isMulti) {
+    if (!answers[qid]) answers[qid] = [];
+    if (isMulti) {
+        const idx = answers[qid].indexOf(letter);
+        if (idx >= 0) answers[qid].splice(idx, 1);
+        else answers[qid].push(letter);
+    } else {
+        answers[qid] = [letter];
+    }
+    showQuestion();
+}
+
+function answerJudge(qid, val) {
+    answers[qid] = [val];
+    showQuestion();
+}
+
+function prevQ() {
+    if (currentQ > 0) { currentQ--; showQuestion(); }
+}
+
+function nextQ() {
+    if (currentQ < questions.length - 1) { currentQ++; showQuestion(); }
+}
+
+async function submitExam() {
+    const unanswered = questions.some(q => !answers[q.id] || answers[q.id].length === 0);
+    if (unanswered && !confirm('您有未作答的题目，确认提交？')) return;
+    clearInterval(timerInterval);
+    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+    const name = document.getElementById('nameInput').value.trim();
+    const ansList = questions.map(q => ({
+        question_id: q.id,
+        answer: answers[q.id] || []
+    }));
+    const res = await fetch('/api/submit', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, answers: ansList, time_spent: timeSpent })
+    });
+    const data = await res.json();
+    currentScoreId = data.score_id;
+    showResult(data, timeSpent);
+}
+
+async function showResult(data, timeSpent) {
+    document.getElementById('examPage').classList.add('hidden');
+    document.getElementById('resultPage').classList.remove('hidden');
+    document.getElementById('finalScore').textContent = data.total_score + ' 分';
+    const m = Math.floor(timeSpent/60), s = timeSpent%60;
+    document.getElementById('scoreDetail').innerHTML =
+        '答对 <b style="color:#52c41a;">' + data.correct_count + '</b> 题　' +
+        '答错 <b style="color:#ff4d4f;">' + data.wrong_count + '</b> 题　' +
+        '用时 ' + m + '分' + s + '秒';
+
+    // 获取详情并显示
+    const detailRes = await fetch('/api/scores/' + currentScoreId + '/details');
+    const detailData = await detailRes.json();
+    let html = '';
+    if (detailData.details && detailData.details.length > 0) {
+        detailData.details.forEach((d, i) => {
+            const isWrong = d.is_correct === 0;
+            const tagClass = d.question_type === 'single' ? 'type-single' : d.question_type === 'multi' ? 'type-multi' : 'type-judge';
+            const typeText = d.question_type === 'single' ? '单选' : d.question_type === 'multi' ? '多选' : '判断';
+            const optionsHtml = (d.options && d.options.length > 0) ? '<div style="margin-top:4px;">' + d.options.map(o => escapeHtml(o)).join('<br>') + '</div>' : '';
+            const correctText = Array.isArray(d.correct_answer) ? d.correct_answer.join(', ') : d.correct_answer;
+            const userText = Array.isArray(d.user_answer) ? d.user_answer.join(', ') : (d.user_answer || '未作答');
+            html += '<div class="detail-item ' + (isWrong ? 'wrong' : '') + '">' +
+                '<div class="detail-q"><span class="' + tagClass + '" style="color:#fff;padding:1px 6px;border-radius:3px;font-size:11px;margin-right:6px;">' + typeText + '</span>' +
+                (i+1) + '、' + escapeHtml(d.question_text) + '</div>' +
+                optionsHtml +
+                '<div class="detail-a">正确答案：<span class="correct-text">' + escapeHtml(correctText) + '</span></div>' +
+                '<div class="detail-a">您的答案：<span class="' + (isWrong ? 'wrong-text' : 'correct-text') + '">' + escapeHtml(userText) + '</span></div>' +
+                '</div>';
+        });
+    }
+    document.getElementById('detailSection').innerHTML = html;
+}
+
+function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+</script>
+</body>
+</html>
