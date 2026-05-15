@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>考试管理后台</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Microsoft YaHei', Arial, sans-serif; background: #f0f2f5; min-height: 100vh; padding: 20px; }
+.container { max-width: 1200px; margin: 0 auto; }
+h1 { color: #1890ff; margin-bottom: 20px; }
+.card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.stats { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+.stat-card { flex: 1; min-width: 180px; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+.stat-num { font-size: 36px; font-weight: bold; color: #1890ff; }
+.stat-label { color: #999; font-size: 14px; margin-top: 5px; }
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+th { background: #fafafa; padding: 12px; text-align: left; border-bottom: 2px solid #e8e8e8; color: #333; font-size: 14px; }
+td { padding: 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+tr:hover { background: #e6f7ff; }
+.btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+.btn-detail { background: #e6f7ff; color: #1890ff; }
+.btn-detail:hover { background: #1890ff; color: #fff; }
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+.modal-overlay.active { display: flex; align-items: center; justify-content: center; }
+.modal { background: #fff; border-radius: 12px; padding: 30px; max-width: 800px; max-height: 80vh; overflow-y: auto; width: 90%; }
+.modal h2 { margin-bottom: 20px; color: #333; }
+.close-btn { float: right; font-size: 24px; cursor: pointer; color: #999; }
+.close-btn:hover { color: #333; }
+.detail-item { padding: 15px; margin-bottom: 12px; border-radius: 8px; border-left: 4px solid #1890ff; background: #fafafa; }
+.detail-item.wrong { border-left-color: #ff4d4f; background: #fff2f0; }
+.detail-q { font-weight: bold; color: #333; margin-bottom: 8px; }
+.detail-a { color: #666; font-size: 14px; line-height: 1.8; }
+.correct-text { color: #52c41a; font-weight: bold; }
+.wrong-text { color: #ff4d4f; font-weight: bold; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #fff; margin-right: 5px; }
+.tag-single { background: #1890ff; }
+.tag-multi { background: #722ed1; }
+.tag-judge { background: #52c41a; }
+.empty { text-align: center; color: #999; padding: 40px; }
+.nav { margin-bottom: 20px; }
+.nav a { color: #1890ff; text-decoration: none; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="nav"><a href="/">← 返回考试首页</a></div>
+  <h1>📊 考试管理后台</h1>
+
+  <div class="stats" id="statsArea">
+    <div class="stat-card"><div class="stat-num" id="statCount">0</div><div class="stat-label">考试人数</div></div>
+    <div class="stat-card"><div class="stat-num" id="statAvg">0</div><div class="stat-label">平均分</div></div>
+    <div class="stat-card"><div class="stat-num" id="statMax">0</div><div class="stat-label">最高分</div></div>
+    <div class="stat-card"><div class="stat-num" id="statMin">0</div><div class="stat-label">最低分</div></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h2 style="margin:0;">成绩列表</h2>
+      <button class="btn" style="background:#ff4d4f; color:#fff;" onclick="clearData()">清理数据</button>
+    </div>
+    <table>
+      <thead><tr><th>ID</th><th>姓名</th><th>分数</th><th>正确</th><th>错误</th><th>用时</th><th>提交时间</th><th>操作</th></tr></thead>
+      <tbody id="scoresBody"></tbody>
+    </table>
+    <div class="empty" id="emptyMsg">暂无考试数据</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <span class="close-btn" onclick="closeModal()">&times;</span>
+    <h2>错题详情</h2>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+async function loadData() {
+    const [statsRes, scoresRes] = await Promise.all([
+        fetch('/api/stats'),
+        fetch('/api/scores')
+    ]);
+    const stats = await statsRes.json();
+    const scores = await scoresRes.json();
+
+    document.getElementById('statCount').textContent = stats.count;
+    document.getElementById('statAvg').textContent = stats.avg_score;
+    document.getElementById('statMax').textContent = stats.max_score;
+    document.getElementById('statMin').textContent = stats.min_score;
+
+    const tbody = document.getElementById('scoresBody');
+    const empty = document.getElementById('emptyMsg');
+    if (scores.scores.length === 0) {
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+    tbody.innerHTML = '';
+    scores.scores.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + s.id + '</td>' +
+            '<td>' + escapeHtml(s.name) + '</td>' +
+            '<td><b>' + s.total_score + '</b></td>' +
+            '<td style="color:#52c41a;">' + s.correct_count + '</td>' +
+            '<td style="color:#ff4d4f;">' + s.wrong_count + '</td>' +
+            '<td>' + s.time_spent + '</td>' +
+            '<td>' + s.submit_time + '</td>' +
+            '<td><button class="btn btn-detail" onclick="showDetail(' + s.id + ')">查看详情</button></td>';
+        tbody.appendChild(tr);
+    });
+}
+
+async function showDetail(scoreId) {
+    const res = await fetch('/api/scores/' + scoreId + '/details');
+    const data = await res.json();
+    let html = '';
+    data.details.forEach((d, i) => {
+        const isWrong = d.is_correct === 0;
+        const typeText = d.question_type === 'single' ? '单选题' : d.question_type === 'multi' ? '多选题' : '判断题';
+        const tagClass = d.question_type === 'single' ? 'tag-single' : d.question_type === 'multi' ? 'tag-multi' : 'tag-judge';
+        let optionsHtml = '';
+        if (d.options && d.options.length > 0) {
+            optionsHtml = '<div class="detail-a"><b>选项：</b>' + d.options.map(o => escapeHtml(o)).join('<br>') + '</div>';
+        }
+        const correctText = Array.isArray(d.correct_answer) ? d.correct_answer.join(', ') : d.correct_answer;
+        const userText = Array.isArray(d.user_answer) ? d.user_answer.join(', ') : (d.user_answer || '未作答');
+        html += '<div class="detail-item ' + (isWrong ? 'wrong' : '') + '">' +
+            '<div class="detail-q"><span class="tag ' + tagClass + '">' + typeText + '</span>　' + (i+1) + '、' + escapeHtml(d.question_text) + '</div>' +
+            optionsHtml +
+            '<div class="detail-a"><b>正确答案：</b><span class="correct-text">' + escapeHtml(correctText) + '</span></div>' +
+            '<div class="detail-a"><b>您的答案：</b><span class="' + (isWrong ? 'wrong-text' : 'correct-text') + '">' + escapeHtml(userText) + '</span></div>' +
+            '<div class="detail-a"><b>得分：</b>' + d.score + ' 分</div>' +
+            '</div>';
+    });
+    document.getElementById('detailContent').innerHTML = html;
+    document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+}
+
+function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+
+async function clearData() {
+    const confirmed = confirm('确定要清理所有考试数据吗？此操作不可恢复！');
+    if (!confirmed) return;
+    const res = await fetch('/api/clear-data', { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+        alert('数据已清理完毕');
+        loadData();
+    } else {
+        alert('清理失败');
+    }
+}
+
+loadData();
+</script>
+</body>
+</html>
